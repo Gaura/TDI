@@ -1,0 +1,65 @@
+---
+title: "TDI Project Proposal"
+author: "Gaurav"
+output:
+  pdf_document: default
+---
+
+
+```{r setup, warning=FALSE}
+library(ggplot2)
+library(pheatmap)
+library(deldir)
+library(ape)
+```
+## loading data
+```{r}
+breastNormal <- read.csv('rawdata_Figure10_TMApanels/TMA03n.csv')
+breastCancer1 <- read.csv('rawdata_Figure10_TMApanels/TMA04n.csv')
+breastCancer2 <- read.csv('rawdata_Figure10_TMApanels/TMA05n.csv')
+```
+
+Data dimensions
+```{r}
+dim(breastNormal)
+dim(breastCancer1)
+dim(breastCancer2)
+```
+## Looking at correlation b/w the protein intensities
+```{r}
+pheatmap(cor(breastNormal[,9:30]))
+pheatmap(cor(breastCancer1[,9:30]))
+pheatmap(cor(breastCancer2[,9:30]))
+```
+
+The first heatmap is from the normal patient and next two are from cancer patient. If we look at HER2 (a gene that plays role in breast cancer) in the second patient, we see it cluster with Ki67 and PD_L1. Ki67 is a cell proliferation marker, meaning cells that are actively dividing will express Ki67. Cancer cells are aggresively dividing and HER2 did not cluster with Ki67 in the normal tissue. Furthermore, PDL1 is expressed by cancer cells to evade attack by immune cells, thus in this patient we expect HER2 positive tumor cells which is informative for the clinician to take action. Second, tumor is likely to be not HER2 positive.
+
+## Spatial Distribution
+
+```{r}
+ggplot(breastNormal,aes(x=X,y=Y,color=scale(HER2))) + geom_point() + 
+labs(color='HER2',title = 'Spatial distribution of HER2 intensities in normal tissue')
+ggplot(breastCancer1,aes(x=X,y=Y,color=scale(HER2))) + geom_point() + 
+labs(color='HER2',title = 'Spatial distribution of HER2 intensities in cancer tissue')
+```
+
+### Quantifying the spatial relationship
+
+Find the distance between cells and use that to compute weights to determine spatial autocorrelation
+```{r}
+normalDist <- as.matrix(dist(breastNormal[,c('X','Y')]))
+cancer1Dist <- as.matrix(dist(breastCancer1[,c('X','Y')]))
+normalWgts <- 100/(normalDist)
+diag(normalWgts) <- 0
+cancer1Wgts <- 100/(cancer1Dist)
+diag(cancer1Wgts) <- 0
+```
+Using Moran's I for measuring spatial autocorrelation
+```{r}
+Moran.I(breastNormal$HER2,normalWgts)
+```
+```{r}
+Moran.I(breastCancer1$HER2,cancer1Wgts)
+```
+
+There is a strong spatial relationship in HER2 intensities in cancer tissue compared to normal. This suggests that not only the cells are expressing higher HER2 but such cells are also spatially closer. This type of analysis can be informative in determining the effect of cellular neighborhoods to cancer reponse.
